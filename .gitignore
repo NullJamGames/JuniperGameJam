@@ -156,6 +156,7 @@ Assets/FR2_Cache.asset.meta
 /[Aa]rtifacts/
 .DS_Store
 Thumbs.db
+# Addressables content under StreamingAssets/aa
 /[Aa]ssets/[Ss]treamingAssets/[Aa][Aa]/**
 /[Ll]ibrary/ScriptAssemblies/
 /.vscode/launch.json
