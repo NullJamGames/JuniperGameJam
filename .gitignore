@@ -105,3 +105,61 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Additional Unity package and plugin ignores
+*.csproj.meta
+ProjectSettings/Packages/com.unity.probuilder/Settings.json
+ProjectSettings/Packages/com.unity.polybrush/Settings.json
+/ProjectSettings/Packages/com.unity.progrids/Settings.json
+/ProjectSettings/Packages/com.unity.learn.iet-framework/Settings.json
+Assets/Polybrush Data*
+Assets/PolybrushData*
+
+# IDE extras
+.idea/
+.vscode/
+*.vsconfig
+
+# Wwise
+.backup*
+.cache*
+*.akd
+*.prof
+*.validationcache
+*.wsettings
+IncrementalSoundBankData.xml
+Assets/Wwise/Editor/ProjectData/AkWwiseProjectData.asset*
+
+# FMOD Unity Integration
+!/[Aa]ssets/Plugins/FMOD/**/lib/*
+!/[Aa]ssets/Gizmos/FMOD/*
+!/[Aa]ssets/Editor Default Resources/FMOD/*
+/[Aa]ssets/**/FMODStudioCache.asset
+/[Aa]ssets/**/FMODStudioCache.asset.meta
+/[Aa]ssets/Plugins/FMOD/Cache/*
+/[Aa]ssets/StreamingAssets/**/*.bank
+/[Aa]ssets/StreamingAssets/**/*.bank.meta
+fmod.log
+fmod_editor.log
+
+# Naninovel
+/Assets/NaninovelData/Transient*
+/Assets/Scenario/NaninovelData/Transient*
+/Assets/NaninovelData/.nani/Transient*
+/Assets/Scenario/NaninovelData/.nani/Transient*
+
+# Other Unity tooling
+Assets/FR2_Cache.asset
+Assets/FR2_Cache.asset.meta
+/[Bb]ee/
+/[Bb]uild[Aa]rtifacts/
+/[Aa]rtifacts/
+.DS_Store
+Thumbs.db
+/[Aa]ssets/[Ss]treamingAssets/[Aa][Aa]/**
+/[Ll]ibrary/ScriptAssemblies/
+/.vscode/launch.json
+/.idea/.idea.*.dir
+/Assets/AssetInventory/
+/Assets/AssetInventory.meta
+/Assets/_AssetInventoryPreviewsTemp/
