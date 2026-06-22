@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: c431d532b1c8d3d4e8b3140141b431a3
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 223973
+  packageName: SuperTiles Multiplayer - turn based engine
+  packageVersion: 1.1.9
+  assetPath: Assets/RedBjorn/Utils/Runtime/Helpers/Constants.cs
+  uploadId: 874216
