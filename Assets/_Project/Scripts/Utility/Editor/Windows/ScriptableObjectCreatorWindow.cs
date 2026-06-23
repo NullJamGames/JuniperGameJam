@@ -116,7 +116,7 @@ namespace NJG.Utilities
                 }
                 else
                 {
-                    Log.E("There is no valid scriptable object");
+                    Debug.LogError("There is no valid scriptable object");
                 }
             }
             GUILayout.EndArea();

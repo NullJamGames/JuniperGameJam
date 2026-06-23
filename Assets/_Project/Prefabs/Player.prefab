@@ -355,6 +355,9 @@ MonoBehaviour:
   _lateralInfluence: 2
   _wallBounceSpinRetention: 0.8
   _defaultLayer: 0
+  _obstacleLayer: 6
+  _breakableObstacleLayer: 9
+  _pickupableLayer: 8
   _invincibleLayer: 7
   <IsInvincible>k__BackingField: 0
 --- !u!1001 &4610413194564708183

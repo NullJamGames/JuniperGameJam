@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Sirenix.OdinInspector;
+﻿using Sirenix.OdinInspector;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -9,77 +6,124 @@ namespace NJG.Runtime.Map
 {
     public class HallwayChunk : MonoBehaviour
     {
+        public enum HallwayLanePosition
+        {
+            Left,
+            Middle,
+            Right
+        }
+        
         [FoldoutGroup("Dependencies"), SerializeField]
         private GameObject[] _obstaclePrefabs;
         [FoldoutGroup("Dependencies"), SerializeField]
         private GameObject[] _powerUpPrefabs;
+        [FoldoutGroup("Dependencies"), SerializeField]
+        private GameObject[] _endLaneBlockers;
 
-        [FoldoutGroup("Settings"), SerializeField]
-        private int _minObstacles = 0;
-        [FoldoutGroup("Settings"), SerializeField]
-        private int _maxObstacles = 4;
-        [FoldoutGroup("Settings"), SerializeField]
-        private float _hallwayLength = 100f;
-
-        [FoldoutGroup("Cluster Limits"), SerializeField]
-        [Tooltip("Maximum number of obstacles allowed within the cluster interval of each other")]
-        private int _maxObstaclesPerInterval = 2;
-        [FoldoutGroup("Cluster Limits"), SerializeField]
-        [Tooltip("Z distance range that defines 'next to each other' — obstacles within this distance count toward the cluster limit")]
-        private float _clusterInterval = 10f;
-        [FoldoutGroup("Cluster Limits"), SerializeField]
-        [Tooltip("Minimum X distance between obstacles that are within the cluster interval — prevents overlapping")]
-        private float _minObstacleXDistance = 5f;
-        [FoldoutGroup("Cluster Limits"), SerializeField]
-        [Tooltip("How many times to retry finding a valid spawn position before giving up on that obstacle")]
-        private int _maxSpawnAttempts = 20;
+        [FoldoutGroup("General"), SerializeField]
+        private float _hallwayLength = 150f;
+        [FoldoutGroup("General"), SerializeField]
+        private int _numberOfLanes = 3;
+        [FoldoutGroup("General"), SerializeField]
+        private HallwayLanePosition _lanePosition = HallwayLanePosition.Middle;
+        [FoldoutGroup("General"), SerializeField]
+        private float _laneIncrement = 5f;
         
-        private void Start()
+        [FoldoutGroup("Segment"), SerializeField]
+        private float _segmentIntervals = 50f;
+        [FoldoutGroup("Segment"), SerializeField]
+        private int _minObstacles = 1;
+        [FoldoutGroup("Segment"), SerializeField, Range(0f, 1f)]
+        private float _rampChance = 0.2f;
+        [FoldoutGroup("Segment"), SerializeField, Range(0f, 1f)]
+        private float _powerUpChance = 0.25f;
+        [FoldoutGroup("Segment"), SerializeField]
+        private float _powerUpSegmentOffset = 20f;
+
+        private HallwaySegment[] _hallwaySegments;
+        
+        public int NumberOfLanes => _numberOfLanes;
+        public int NextChunkLanes { get; private set; }
+
+        public void Init(int nextChunkLanes, bool isEmpty)
         {
-            SpawnObstacles();
+            NextChunkLanes = nextChunkLanes;
+            SetupEndBlockers();
+            
+            if (isEmpty)
+                return;
+            
+            SpawnSegmentObjects();
+            SpawnPowerUps();
         }
 
-        private void SpawnObstacles()
+        private void SetupEndBlockers()
         {
-            int obstaclesToSpawn = Random.Range(_minObstacles, _maxObstacles + 1);
-            List<Vector2> spawnedPositions = new (); // x = world X, y = local Z
-
-            for (int x = 0; x < obstaclesToSpawn; x++)
+            if (NextChunkLanes < NumberOfLanes)
             {
-                bool placed = false;
+                foreach (GameObject endLaneBlocker in _endLaneBlockers)
+                    endLaneBlocker.SetActive(true);
+            }
+        }
 
-                for (int attempt = 0; attempt < _maxSpawnAttempts; attempt++)
+        // Here we spawn Obstacles and Ramps
+        private void SpawnSegmentObjects()
+        {
+            int spawnIterations = Mathf.FloorToInt(_hallwayLength / _segmentIntervals);
+            _hallwaySegments = new HallwaySegment[spawnIterations];
+            HallwaySegment lastSegment = null;
+            for (int x = 0; x < spawnIterations; x++)
+            {
+                _hallwaySegments[x] = new HallwaySegment(_numberOfLanes, _laneIncrement, 
+                    ((x + 1) * _segmentIntervals) + transform.position.z, _segmentIntervals);
+                bool lastSegmentHasRamp = lastSegment is { HasRamp: true };
+
+                // We don't want to spawn obstacles and ramps on the last segment if the next chunk has less lanes.
+                if (x == spawnIterations - 1 && NextChunkLanes < NumberOfLanes)
+                    return;
+                
+                SpawnSegmentObstacles(_hallwaySegments[x], lastSegmentHasRamp, Random.Range(_minObstacles, _numberOfLanes + 1));
+                
+                if (Random.Range(0f, 1f) < _rampChance)
                 {
-                    float candidateZ = Random.Range(5f, _hallwayLength - 5f);
-                    float candidateX = Random.Range(-5f, 5f);
-
-                    // Validate against all already-placed obstacles
-                    int nearbyCount = 0;
-                    bool tooCloseX = false;
-                    foreach (Vector2 pos in from pos in spawnedPositions let withinCluster = 
-                                 Mathf.Abs(pos.y - candidateZ) <= _clusterInterval where withinCluster select pos)
-                    {
-                        nearbyCount++;
-                        if (Mathf.Abs(pos.x - candidateX) < _minObstacleXDistance)
-                        {
-                            tooCloseX = true;
-                            break;
-                        }
-                    }
-
-                    if (nearbyCount < _maxObstaclesPerInterval && !tooCloseX)
-                    {
-                        Vector3 spawnPosition = transform.position + new Vector3(candidateX, 0f, candidateZ);
-                        GameObject obstaclePrefab = _obstaclePrefabs[Random.Range(0, _obstaclePrefabs.Length)];
-                        Instantiate(obstaclePrefab, spawnPosition, Quaternion.identity, transform);
-                        spawnedPositions.Add(new Vector2(candidateX, candidateZ));
-                        placed = true;
-                        break;
-                    }
+                    SpawnSegmentRamp(_hallwaySegments[x]);
                 }
+                
+                lastSegment = _hallwaySegments[x];
+            }
+        }
 
-                if (!placed)
-                    Debug.LogWarning($"[HallwayChunk] Could not find a valid spawn position for obstacle {x} after {_maxSpawnAttempts} attempts.");
+        private void SpawnSegmentObstacles(HallwaySegment segment, bool lastSegmentHasRamp, int amount)
+        {
+            for (int x = 0; x < amount; x++)
+            {
+                if (!segment.TryGetRandomValidObstaclePosition(lastSegmentHasRamp, out HallwaySegment.LanePosition position))
+                    break;
+                
+                GameObject obstacle = Instantiate(_obstaclePrefabs[0], transform);
+                obstacle.transform.position = new Vector3(position.X, 0f, position.Z);
+            }
+        }
+
+        private void SpawnSegmentRamp(HallwaySegment segment)
+        {
+            if (!segment.TryGetValidRampPosition(out HallwaySegment.LanePosition rampPosition))
+                return;
+            
+            GameObject ramp = Instantiate(_obstaclePrefabs[1], transform);
+            ramp.transform.position = new Vector3(rampPosition.X, 0f, rampPosition.Z);
+        }
+
+        private void SpawnPowerUps()
+        {
+            foreach (HallwaySegment segment in _hallwaySegments)
+            {
+                if (Random.Range(0f, 1f) > _powerUpChance)
+                    continue;
+                
+                HallwaySegment.LanePosition position = segment.GetValidRandomPowerUpPosition(_powerUpSegmentOffset);
+                GameObject powerUp = Instantiate(_powerUpPrefabs[Random.Range(0, _powerUpPrefabs.Length)], transform);
+                powerUp.transform.position = new Vector3(position.X, 0f, position.Z);
             }
         }
     }

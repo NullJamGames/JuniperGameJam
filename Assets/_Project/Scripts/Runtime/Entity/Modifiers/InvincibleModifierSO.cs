@@ -1,14 +1,18 @@
-﻿using Sirenix.OdinInspector;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace NJG.Runtime.Entity
 {
     [CreateAssetMenu(fileName = "InvincibleModifier", menuName = "NJG/Modifiers/Invincible")]
-    public class InvincibleModifierSO : ScriptableObject
+    public class InvincibleModifierSO : BaseModifierSO
     {
-        [field: SerializeField]
-        public bool IsTemporary { get; private set; } = true;
-        [field: SerializeField, ShowIf(nameof(IsTemporary))]
-        public float Duration { get; private set; } = 5f;
+        public override void OnApplyModifier(IEntity entity)
+        {
+            entity.SetInvincible(true);
+        }
+
+        public override void OnRemoveModifier(IEntity entity)
+        {
+            entity.SetInvincible(false);
+        }
     }
 }

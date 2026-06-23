@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using NJG.Runtime.Events;
 using NJG.Runtime.Input;
+using NJG.Runtime.Interactables;
 using NJG.Runtime.Managers;
 using NJG.Utilities;
 using Sirenix.OdinInspector;
@@ -13,7 +14,7 @@ namespace NJG.Runtime.Entity
     {
         [Header("Movement")]
         [SerializeField]
-        private float _speed = 10f;
+        private float _acceleration = 10f;
         [SerializeField]
         private float _maxSpeed = 30f;
 
@@ -37,10 +38,15 @@ namespace NJG.Runtime.Entity
         [SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
         private int _defaultLayer;
         [SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
+        private int _obstacleLayer;
+        [SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
+        private int _breakableObstacleLayer;
+        [SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
+        private int _pickupableLayer;
+        [SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
         private int _invincibleLayer;
         [field: SerializeField]
         public bool IsInvincible { get; private set; }
-        
         
         private CapsuleCollider _collider;
         private Rigidbody _rigidbody;
@@ -48,7 +54,9 @@ namespace NJG.Runtime.Entity
         private EntityModifiers _modifiers;
 
         private bool _isMoving = true;
-        
+
+        private float _accelerationMultiplier = 1f;
+        private float _maxSpeedMultiplier = 1f;
         
         public Vector3 Position => transform.position;
 
@@ -58,12 +66,9 @@ namespace NJG.Runtime.Entity
         {
             _collider = GetComponent<CapsuleCollider>();
             _rigidbody = GetComponent<Rigidbody>();
-            _modifiers = new EntityModifiers();
+            _modifiers = new EntityModifiers(this);
             
             _rigidbody.maxAngularVelocity = _maxAngularSpeed;
-            
-            // TEST
-            SetInvincible(true);
         }
 
         private void OnEnable()
@@ -93,15 +98,15 @@ namespace NJG.Runtime.Entity
             _rigidbody.AddTorque(Vector3.up * (xMovement * _spinTorque), ForceMode.Acceleration);
 
             // Always propel forward down the hallway (world space)
-            _rigidbody.AddForce(Vector3.forward * _speed, ForceMode.Acceleration);
+            _rigidbody.AddForce(Vector3.forward * (_acceleration * _accelerationMultiplier), ForceMode.Acceleration);
 
             // Current spin speed drives lateral drift — faster spin = more left/right push
             float spinY = _rigidbody.angularVelocity.y;
             _rigidbody.AddForce(Vector3.right * (spinY * _lateralInfluence), ForceMode.Acceleration);
 
-            if (_rigidbody.linearVelocity.magnitude > _maxSpeed)
+            if (_rigidbody.linearVelocity.magnitude > (_maxSpeed * _maxSpeedMultiplier))
             {
-                _rigidbody.linearVelocity = _rigidbody.linearVelocity.normalized * _maxSpeed;
+                _rigidbody.linearVelocity = _rigidbody.linearVelocity.normalized * (_maxSpeed * _maxSpeedMultiplier);
             }
         }
         
@@ -120,7 +125,8 @@ namespace NJG.Runtime.Entity
                 }
 
                 // Hit head on object
-                if (contact.normal.z < -0.5f && !IsInvincible)
+                if (contact.normal.z < -0.5f && !IsInvincible && 
+                    (collision.gameObject.layer == _obstacleLayer || collision.gameObject.layer == _breakableObstacleLayer))
                 {
                     // front collision
                     _isMoving = false;
@@ -128,6 +134,14 @@ namespace NJG.Runtime.Entity
                     OnStoppedMoving?.Invoke();
                     break;
                 }
+            }
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (other.gameObject.layer == _pickupableLayer && other.TryGetComponent(out IPickupable pickupable))
+            {
+                pickupable.Pickup(this);
             }
         }
 
@@ -152,7 +166,7 @@ namespace NJG.Runtime.Entity
             transform.position = worldPosition;
         }
 
-        public void ApplyModifier(InvincibleModifierSO modifierData)
+        public void ApplyModifier(BaseModifierSO modifierData)
         {
             _modifiers.AddModifier(modifierData);
         }
@@ -161,6 +175,16 @@ namespace NJG.Runtime.Entity
         {
             IsInvincible = isInvincible;
             gameObject.layer = isInvincible ? _invincibleLayer : _defaultLayer;
+        }
+        
+        public void SetAccelerationMultiplier(float accelerationMultiplier)
+        {
+            _accelerationMultiplier = accelerationMultiplier;
+        }
+        
+        public void SetMaxSpeedMultiplier(float maxSpeedMultiplier)
+        {
+            _maxSpeedMultiplier = maxSpeedMultiplier;
         }
 
         private IEnumerable<ValueDropdownItem<int>> GetLayerDropdownItems()

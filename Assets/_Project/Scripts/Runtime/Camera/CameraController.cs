@@ -9,6 +9,10 @@ namespace NJG.Runtime.Cam
     {
         [field: SerializeField]
         public CinemachineCamera FollowCamera { get; private set; }
+        [SerializeField]
+        private Transform _distanceBlocker;
+        [SerializeField]
+        private float _blockerZOffset = 150f;
         
         public Camera MainCamera { get; private set; }
 
@@ -21,6 +25,11 @@ namespace NJG.Runtime.Cam
                 Log.I("FollowCamera is not assigned, trying to find one in the scene.");
                 FollowCamera = FindAnyObjectByType<CinemachineCamera>();
             }
+        }
+
+        private void Update()
+        {
+            _distanceBlocker.position = _distanceBlocker.position.WithZ(transform.position.z + _blockerZOffset);
         }
 
         public void SetFollowTarget(Transform target)
