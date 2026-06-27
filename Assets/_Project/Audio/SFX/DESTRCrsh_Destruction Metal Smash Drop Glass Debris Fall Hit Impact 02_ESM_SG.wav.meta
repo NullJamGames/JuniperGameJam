@@ -1,0 +1,30 @@
+fileFormatVersion: 2
+guid: 88904d374b4c692448551cd3b3643a4a
+AudioImporter:
+  externalObjects: {}
+  serializedVersion: 8
+  defaultSettings:
+    serializedVersion: 2
+    loadType: 0
+    sampleRateSetting: 0
+    sampleRateOverride: 44100
+    compressionFormat: 1
+    quality: 1
+    conversionMode: 0
+    preloadAudioData: 0
+  platformSettingOverrides: {}
+  forceToMono: 0
+  normalize: 1
+  loadInBackground: 0
+  ambisonic: 0
+  3D: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 0
+  packageName: "Audio Collection (GameDevTV)"
+  packageVersion: ""
+  assetPath: "Assets/ThirdParty/DESTRCrsh_Destruction Metal Smash Drop Glass Debris Fall Hit Impact 02_ESM_SG.wav"
+  uploadId: 0

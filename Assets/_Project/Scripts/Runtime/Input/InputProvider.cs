@@ -20,5 +20,10 @@ namespace NJG.Runtime.Input
         {
             return _playerInput.Player.Move.ReadValue<Vector2>();
         }
+
+        public bool WasPausePressed()
+        {
+            return _playerInput.Player.Pause.WasPressedThisFrame();
+        }
     }
 }

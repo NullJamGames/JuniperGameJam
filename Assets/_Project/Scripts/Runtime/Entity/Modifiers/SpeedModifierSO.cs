@@ -6,20 +6,20 @@ namespace NJG.Runtime.Entity
     public class SpeedModifierSO : BaseModifierSO
     {
         [field: SerializeField]
-        public float AccelerationMultiplier { get; private set; } = 1.25f;
+        public float AccelerationMultiplier { get; private set; } = 1.5f;
         [field: SerializeField]
-        public float MaxSpeedMultiplier { get; private set; } = 1.25f;
+        public float MaxSpeedMultiplier { get; private set; } = 1.5f;
         
         public override void OnApplyModifier(IEntity entity)
         {
-            entity.SetAccelerationMultiplier(AccelerationMultiplier);
-            entity.SetMaxSpeedMultiplier(MaxSpeedMultiplier);
+            entity.Stats.ApplyAccelerationMultiplier(EntityStats.Operation.Multiply, AccelerationMultiplier);
+            entity.Stats.ApplyMaxSpeedMultiplier(EntityStats.Operation.Multiply, MaxSpeedMultiplier);
         }
 
         public override void OnRemoveModifier(IEntity entity)
         {
-            entity.SetAccelerationMultiplier(1f);
-            entity.SetMaxSpeedMultiplier(1f);
+            entity.Stats.ApplyAccelerationMultiplier(EntityStats.Operation.Divide, AccelerationMultiplier);
+            entity.Stats.ApplyMaxSpeedMultiplier(EntityStats.Operation.Divide, MaxSpeedMultiplier);
         }
     }
 }

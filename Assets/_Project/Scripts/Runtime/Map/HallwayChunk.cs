@@ -1,6 +1,5 @@
 ﻿using Sirenix.OdinInspector;
 using UnityEngine;
-using Random = UnityEngine.Random;
 
 namespace NJG.Runtime.Map
 {
@@ -15,6 +14,8 @@ namespace NJG.Runtime.Map
         
         [FoldoutGroup("Dependencies"), SerializeField]
         private GameObject[] _obstaclePrefabs;
+        [FoldoutGroup("Dependencies"), SerializeField]
+        private GameObject[] _rampPrefabs;
         [FoldoutGroup("Dependencies"), SerializeField]
         private GameObject[] _powerUpPrefabs;
         [FoldoutGroup("Dependencies"), SerializeField]
@@ -42,12 +43,15 @@ namespace NJG.Runtime.Map
 
         private HallwaySegment[] _hallwaySegments;
         
+        private DeterministicRandom _random;
+        
         public int NumberOfLanes => _numberOfLanes;
         public int NextChunkLanes { get; private set; }
 
-        public void Init(int nextChunkLanes, bool isEmpty)
+        public void Init(int nextChunkLanes, bool isEmpty, DeterministicRandom random)
         {
             NextChunkLanes = nextChunkLanes;
+            _random = random;
             SetupEndBlockers();
             
             if (isEmpty)
@@ -82,9 +86,10 @@ namespace NJG.Runtime.Map
                 if (x == spawnIterations - 1 && NextChunkLanes < NumberOfLanes)
                     return;
                 
-                SpawnSegmentObstacles(_hallwaySegments[x], lastSegmentHasRamp, Random.Range(_minObstacles, _numberOfLanes + 1));
+                SpawnSegmentObstacles(_hallwaySegments[x], lastSegmentHasRamp, _random.Range(_minObstacles, _numberOfLanes + 1));
                 
-                if (Random.Range(0f, 1f) < _rampChance)
+                // ramps
+                if (_random.Range(0f, 1f) < _rampChance)
                 {
                     SpawnSegmentRamp(_hallwaySegments[x]);
                 }
@@ -97,11 +102,13 @@ namespace NJG.Runtime.Map
         {
             for (int x = 0; x < amount; x++)
             {
-                if (!segment.TryGetRandomValidObstaclePosition(lastSegmentHasRamp, out HallwaySegment.LanePosition position))
+                if (!segment.TryGetRandomValidObstaclePosition(lastSegmentHasRamp, _random, out HallwaySegment.LanePosition position))
                     break;
                 
-                GameObject obstacle = Instantiate(_obstaclePrefabs[0], transform);
-                obstacle.transform.position = new Vector3(position.X, 0f, position.Z);
+                GameObject obstacle = Instantiate(_obstaclePrefabs[_random.Range(0, _obstaclePrefabs.Length)], transform);
+                Vector3 pos = new (position.X, 0f, position.Z);
+                Quaternion rot = Quaternion.Euler(0f, 180f, 0f);
+                obstacle.transform.SetPositionAndRotation(pos, rot);
             }
         }
 
@@ -110,7 +117,7 @@ namespace NJG.Runtime.Map
             if (!segment.TryGetValidRampPosition(out HallwaySegment.LanePosition rampPosition))
                 return;
             
-            GameObject ramp = Instantiate(_obstaclePrefabs[1], transform);
+            GameObject ramp = Instantiate(_rampPrefabs[_random.Range(0, _rampPrefabs.Length)], transform);
             ramp.transform.position = new Vector3(rampPosition.X, 0f, rampPosition.Z);
         }
 
@@ -118,11 +125,11 @@ namespace NJG.Runtime.Map
         {
             foreach (HallwaySegment segment in _hallwaySegments)
             {
-                if (Random.Range(0f, 1f) > _powerUpChance)
+                if (_random.Range(0f, 1f) > _powerUpChance)
                     continue;
                 
-                HallwaySegment.LanePosition position = segment.GetValidRandomPowerUpPosition(_powerUpSegmentOffset);
-                GameObject powerUp = Instantiate(_powerUpPrefabs[Random.Range(0, _powerUpPrefabs.Length)], transform);
+                HallwaySegment.LanePosition position = segment.GetValidRandomPowerUpPosition(_powerUpSegmentOffset, _random);
+                GameObject powerUp = Instantiate(_powerUpPrefabs[_random.Range(0, _powerUpPrefabs.Length)], transform);
                 powerUp.transform.position = new Vector3(position.X, 0f, position.Z);
             }
         }

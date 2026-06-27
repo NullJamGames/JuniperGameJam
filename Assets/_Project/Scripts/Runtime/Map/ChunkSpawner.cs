@@ -12,9 +12,12 @@ namespace NJG.Runtime.Map
         private readonly List<HallwayChunk> _activeChunks = new ();
         private HallwayChunk _nextChunkPrefab;
 
-        public ChunkSpawner(ChunkSpawnOptions spawnOptions)
+        private readonly DeterministicRandom _random;
+
+        public ChunkSpawner(ChunkSpawnOptions spawnOptions, int seed)
         {
             _spawnOptions = spawnOptions;
+            _random = new DeterministicRandom(seed);
         }
 
         public void SpawnInitialChunks()
@@ -53,6 +56,19 @@ namespace NJG.Runtime.Map
             }
         }
 
+        public void ResetChunks(int seed)
+        {
+            foreach (HallwayChunk chunk in _activeChunks)
+                Object.Destroy(chunk.gameObject);
+            
+            _activeChunks.Clear();
+            _nextChunkPrefab = null;
+
+            _random.Reset(seed);
+            
+            SpawnInitialChunks();
+        }
+
         public float GetChunkTriggerPositionZ()
         {
             return _activeChunks[2].transform.position.z;
@@ -75,19 +91,19 @@ namespace NJG.Runtime.Map
             // if (isEmpty)
             // {
             //     HallwayChunk[] chunks = _spawnOptions.HallwayChunks.Where(chunk => chunk.NumberOfLanes == 3).ToArray();
-            //     chunkPrefab = chunks[Random.Range(0, chunks.Length)];
+            //     chunkPrefab = chunks[_random.Range(0, chunks.Length)];
             // }
             // else
             // {
             //     int nextChunkLanes = GetNextChunkLanes(lastChunkLanes);
             //     HallwayChunk[] chunks = _spawnOptions.HallwayChunks.Where(chunk => chunk.NumberOfLanes == nextChunkLanes).ToArray();
-            //     chunkPrefab = chunks[Random.Range(0, chunks.Length)];
+            //     chunkPrefab = chunks[_random.Range(0, chunks.Length)];
             // }
             
             // TODO: We can make this more performant by using a pool.
-            //HallwayChunk chunkPrefab = _spawnOptions.HallwayChunks[Random.Range(0, _spawnOptions.HallwayChunks.Length)];
+            //HallwayChunk chunkPrefab = _spawnOptions.HallwayChunks[_random.Range(0, _spawnOptions.HallwayChunks.Length)];
             HallwayChunk newChunk = Object.Instantiate(chunkPrefab, position, Quaternion.identity);
-            newChunk.Init(_nextChunkPrefab.NumberOfLanes, isEmpty);
+            newChunk.Init(_nextChunkPrefab.NumberOfLanes, isEmpty, _random);
             return newChunk;
         }
 
@@ -96,13 +112,13 @@ namespace NJG.Runtime.Map
             if (isEmpty)
             {
                 HallwayChunk[] chunks = _spawnOptions.HallwayChunks.Where(chunk => chunk.NumberOfLanes == 3).ToArray();
-                return chunks[Random.Range(0, chunks.Length)];
+                return chunks[_random.Range(0, chunks.Length)];
             }
             else
             {
                 int nextChunkLanes = GetNextChunkLanes(lastChunkLanes);
                 HallwayChunk[] chunks = _spawnOptions.HallwayChunks.Where(chunk => chunk.NumberOfLanes == nextChunkLanes).ToArray();
-                return chunks[Random.Range(0, chunks.Length)];
+                return chunks[_random.Range(0, chunks.Length)];
             }
         }
 
@@ -111,11 +127,11 @@ namespace NJG.Runtime.Map
             if (currentChunkLanes != 3)
                 return 3;
             
-            float roll = Random.value;
+            float roll = _random.Range(0f, 1f);
 
             float chanceFor1or5 = 0.5f;
             if (roll < chanceFor1or5)
-                return Random.Range(0f, 1f) < 0.5f ? 1 : 5;
+                return _random.Range(0f, 1f) < 0.5f ? 1 : 5;
 
             return 3;
 

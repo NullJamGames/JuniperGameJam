@@ -20,7 +20,7 @@ namespace NJG.Runtime.Entity
             
             if (other.TryGetComponent(out IBreakable breakable))
             {
-                breakable.Break();
+                breakable.Break(_entity);
             }
         }
     }

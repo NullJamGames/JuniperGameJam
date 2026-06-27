@@ -1,107 +1,151 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using NJG.Runtime.Entity;
 using NJG.Runtime.Events;
+using NJG.Runtime.Input;
 using NJG.Runtime.Managers;
+using NJG.Runtime.Online;
 using NJG.Utilities;
 using Sirenix.OdinInspector;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
 namespace NJG.Runtime.UI
 {
     public class GameUI : MonoBehaviour
     {
-        [FoldoutGroup("Score UI"), SerializeField]
-        private TextMeshProUGUI _scoreText;
-        
-        [FoldoutGroup("Modifiers UI"), SerializeField]
-        private GameObject _buffIndicatorContainer;
-        [FoldoutGroup("Modifiers UI"), SerializeField]
-        private BuffIndicatorVisual _buffIndicatorPrefab;
+        [FoldoutGroup("Panels"), SerializeField]
+        private MainMenuPanel _mainMenuPanel;
+        [FoldoutGroup("Panels"), SerializeField]
+        private LeaderboardPanel _leaderboardPanel;
+        [FoldoutGroup("Panels"), SerializeField]
+        private UpgradePanel _upgradePanel;
+        [FoldoutGroup("Panels"), SerializeField]
+        private OptionsPanel _optionsPanel;
+        [FoldoutGroup("Panels"), SerializeField]
+        private CreditsPanel _creditsPanel;
+        [FoldoutGroup("Panels"), SerializeField]
+        private PlayerHUD _playerHUD;
+        [FoldoutGroup("Panels"), SerializeField]
+        private PausePanel _pausePanel;
 
-        [FoldoutGroup("Game Over"), SerializeField]
-        private GameObject _gameOverPanel;
-        [FoldoutGroup("Game Over"), SerializeField]
-        private TextMeshProUGUI _gameOverScoreText;
-        [FoldoutGroup("Game Over"), SerializeField]
-        private Button _restartButton;
+        private IInputProvider _input;
         
-        private List<BuffIndicatorVisual> _buffIndicators = new ();
+        private void Awake()
+        {
+            _leaderboardPanel.Initialize(OnButton_NewRun, OnButton_UpgradeShop, OnButton_MainMenu);
+            _mainMenuPanel.Initialize(OnButton_NewRun, OnButton_Leaderboard, OnButton_UpgradeShop, OnButton_Options, OnButton_Credits);
+            _pausePanel.Init(OnButton_Options);
+        }
 
         private void OnEnable()
         {
-            _restartButton.onClick.AddListener(OnButton_Restart);
-            
             EventBus.StartListening<ScoreChangedEvent>(OnScoreChanged);
             EventBus.StartListening<GameOverEvent>(OnGameOver);
+            EventBus.StartListening<NewRunEvent>(OnNewRun);
             
             // Modifer Events
             EventBus.StartListening<AddedModifierEvent>(OnAddedModifier);
-            EventBus.StartListening<UpdatedModifierEvent>(OnUpdateModifier);
             EventBus.StartListening<RemovedModifierEvent>(OnRemovedModifier);
+        }
+
+        private void Start()
+        {
+            _input = GameManager.Instance.InputProvider;
+            
+            HideAllPanels();
+            _mainMenuPanel.OnShow();
+        }
+
+        private void Update()
+        {
+            if (_input.WasPausePressed() && GameManager.Instance.TryPauseGame())
+            {
+                _pausePanel.OnShow();
+            }
         }
 
         private void OnDisable()
         {
-            _restartButton.onClick.RemoveListener(OnButton_Restart);
-            
             EventBus.StopListening<ScoreChangedEvent>(OnScoreChanged);
             EventBus.StopListening<GameOverEvent>(OnGameOver);
+            EventBus.StopListening<NewRunEvent>(OnNewRun);
             
             // Modifer Events
             EventBus.StopListening<AddedModifierEvent>(OnAddedModifier);
-            EventBus.StopListening<UpdatedModifierEvent>(OnUpdateModifier);
             EventBus.StopListening<RemovedModifierEvent>(OnRemovedModifier);
         }
 
         private void OnAddedModifier(AddedModifierEvent e)
         {
-            BuffIndicatorVisual indicator = Instantiate(_buffIndicatorPrefab, _buffIndicatorContainer.transform);
-            indicator.SetUp(e.Modifier);
-            _buffIndicators.Add(indicator);
-        }
-        
-        private void OnUpdateModifier(UpdatedModifierEvent e)
-        {
-            BuffIndicatorVisual indicator = _buffIndicators.FirstOrDefault(indicator => indicator.ModifierData == e.Modifier);
-            if (indicator == null)
-            {
-                Log.E($"No indicator found for modifier {e.Modifier.name}");
-                return;
-            }
-            
-            indicator.UpdateDuration(e.RemainingDuration);
+            _playerHUD.AddModifier(e.Modifier);
         }
         
         private void OnRemovedModifier(RemovedModifierEvent e)
         {
-            for (int i = 0; i < _buffIndicators.Count; i++)
-            {
-                if (_buffIndicators[i].ModifierData == e.Modifier)
-                {
-                    Destroy(_buffIndicators[i].gameObject);
-                    _buffIndicators.RemoveAt(i);
-                    break;
-                }
-            }
+            _playerHUD.RemoveModifier(e.Modifier);
         }
 
         private void OnScoreChanged(ScoreChangedEvent e)
         {
-            _scoreText.SetText($"Score: {e.Score}");
+            _playerHUD.SetScore(e.Score);
         }
 
         private void OnGameOver(GameOverEvent e)
         {
-            _gameOverPanel.SetActive(true);
-            _gameOverScoreText.SetText($"Final Score: <color=green>{e.Score}</color>");
+            HideAllPanels();
+            _leaderboardPanel.OnShow();
+            _leaderboardPanel.ShowGameOverText(e.Score, e.HighScore);
         }
 
-        private void OnButton_Restart()
+        private void OnNewRun(NewRunEvent e)
         {
-            GameManager.Instance.Restart();
+            HideAllPanels();
+            _playerHUD.OnShow();
+        }
+        
+        private void OnButton_NewRun()
+        {
+            GameManager.Instance.NewRun();
+        }
+        
+        private void OnButton_MainMenu()
+        {
+            HideAllPanels();
+            _mainMenuPanel.OnShow();
+        }
+
+        private void OnButton_Leaderboard()
+        {
+            _mainMenuPanel.OnHide();
+            _leaderboardPanel.OnShow();
+        }
+
+        private void OnButton_UpgradeShop()
+        {
+            _upgradePanel.OnShow();
+        }
+
+        private void OnButton_Options()
+        {
+            _optionsPanel.OnShow();
+        }
+        
+        private void OnButton_Credits()
+        {
+            _creditsPanel.OnShow();
+        }
+        
+        private void HideAllPanels()
+        {
+            _pausePanel.OnHide();
+            _playerHUD.OnHide();
+            _mainMenuPanel.OnHide();
+            _leaderboardPanel.OnHide();
+            _upgradePanel.OnHide();
+            _optionsPanel.OnHide();
+            _creditsPanel.OnHide();
         }
     }
 }

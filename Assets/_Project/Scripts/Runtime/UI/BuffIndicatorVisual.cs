@@ -9,23 +9,32 @@ namespace NJG.Runtime.UI
     {
         private Image _image;
         
-        public BaseModifierSO ModifierData { get; private set; }
+        public Modifier Modifier { get; private set; }
 
         private void Awake()
         {
             _image = GetComponent<Image>();
         }
 
-        public void SetUp(BaseModifierSO modifierData)
+        public void SetUp(Modifier modifier)
         {
-            ModifierData = modifierData;
-            _image.color = modifierData.Color;
+            Modifier = modifier;
+            _image.color = modifier.Color;
+            if (modifier.ModifierData.Sprite != null) _image.sprite = modifier.ModifierData.Sprite;
             _image.fillAmount = 1f;
+            
+            Modifier.OnModifierDurationUpdated += UpdateVisualDuration;
         }
 
-        public void UpdateDuration(float remainingDuration)
+        private void OnDestroy()
         {
-            _image.fillAmount = remainingDuration / ModifierData.Duration;
+            if (Modifier != null)
+                Modifier.OnModifierDurationUpdated -= UpdateVisualDuration;
+        }
+
+        public void UpdateVisualDuration()
+        {
+            _image.fillAmount = Modifier.RemainingDuration / Modifier.Duration;
         }
     }
 }

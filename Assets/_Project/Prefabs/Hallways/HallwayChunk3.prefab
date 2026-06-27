@@ -48,9 +48,25 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3667818395321151569, guid: 73a50b1bdfb7db442a9c0f2a29141c68, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3667818395321151569, guid: 73a50b1bdfb7db442a9c0f2a29141c68, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5178034950958587250, guid: 73a50b1bdfb7db442a9c0f2a29141c68, type: 3}
       propertyPath: m_Name
       value: HallwayChunk3
+      objectReference: {fileID: 0}
+    - target: {fileID: 6419645182196261128, guid: 73a50b1bdfb7db442a9c0f2a29141c68, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9107145046058036586, guid: 73a50b1bdfb7db442a9c0f2a29141c68, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

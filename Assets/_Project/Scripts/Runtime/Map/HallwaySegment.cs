@@ -42,14 +42,18 @@ namespace NJG.Runtime.Map
             }
         }
         
-        public bool TryGetRandomValidObstaclePosition(bool lastSegmentHasRamp, out LanePosition position)
+        public bool TryGetRandomValidObstaclePosition(bool lastSegmentHasRamp, DeterministicRandom random, out LanePosition position)
         {
             position = default(LanePosition);
-            if (!CanPlaceObstacle(lastSegmentHasRamp ? 1 : 2))
+            
+            // TODO: Disabled fully blocking path for now. Need to work it out with rest of gameplay.
+            // if (!CanPlaceObstacle(lastSegmentHasRamp ? 1 : 2))
+            //     return false;
+            if (!CanPlaceObstacle(2))
                 return false;
             
             Lane[] emptyLanes = _lanes.Where(lane => lane.IsEmpty).ToArray();
-            Lane emptyLane = emptyLanes[Random.Range(0, emptyLanes.Length)];
+            Lane emptyLane = emptyLanes[random.Range(0, emptyLanes.Length)];
             emptyLane.IsEmpty = false;
             position = emptyLane.Position;
             return true;
@@ -68,10 +72,10 @@ namespace NJG.Runtime.Map
             return true;
         }
 
-        public LanePosition GetValidRandomPowerUpPosition(float segmentOffset)
+        public LanePosition GetValidRandomPowerUpPosition(float segmentOffset, DeterministicRandom random)
         {
-            Lane lane = _lanes[Random.Range(0, _lanes.Length)];
-            float zPos = Random.Range(lane.Position.Z - _segmentLength + segmentOffset, lane.Position.Z - segmentOffset);
+            Lane lane = _lanes[random.Range(0, _lanes.Length)];
+            float zPos = random.Range(lane.Position.Z - _segmentLength + segmentOffset, lane.Position.Z - segmentOffset);
             return new LanePosition(lane.Position.X, zPos);
         }
         

@@ -12,53 +12,43 @@ namespace NJG.Runtime.Entity
 {
     public class PlayerEntity : MonoBehaviour, IEntity
     {
-        [Header("Movement")]
-        [SerializeField]
-        private float _acceleration = 10f;
-        [SerializeField]
-        private float _maxSpeed = 30f;
+        [FoldoutGroup("Stats"), SerializeField, HideLabel]
+        private EntityStats _stats;
 
-        [Header("Spinning")]
-        [Tooltip("Torque applied to the chair per unit of X input")]
-        [SerializeField]
-        private float _spinTorque = 45f;
-        [Tooltip("Maximum spin speed in radians per second")]
-        [SerializeField]
-        private float _maxAngularSpeed = 10f;
-        [Tooltip("How strongly the current spin speed pushes the player left/right")]
-        [SerializeField]
-        private float _lateralInfluence = 5f;
-
-        [Header("Wall Bounce")]
-        [Tooltip("Fraction of spin speed kept after reversing on a wall hit (0 = all spin lost, 1 = full reversal)")]
-        [SerializeField]
-        private float _wallBounceSpinRetention = 0.8f;
-
-        [Header("Other")]
-        [SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
+        [FoldoutGroup("Layers"), SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
         private int _defaultLayer;
-        [SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
+        [FoldoutGroup("Layers"), SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
+        private int _groundLayer;
+        [FoldoutGroup("Layers"), SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
         private int _obstacleLayer;
-        [SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
+        [FoldoutGroup("Layers"), SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
         private int _breakableObstacleLayer;
-        [SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
+        [FoldoutGroup("Layers"), SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
         private int _pickupableLayer;
-        [SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
+        [FoldoutGroup("Layers"), SerializeField, ValueDropdown(nameof(GetLayerDropdownItems))]
         private int _invincibleLayer;
-        [field: SerializeField]
+        
+        [field: FoldoutGroup("Other"), SerializeField]
         public bool IsInvincible { get; private set; }
+        [FoldoutGroup("Other"), SerializeField]
+        private PhysicsMaterial _slipperyMat;
+        
+        [FoldoutGroup("Debug"), SerializeField, ReadOnly]
+        private bool _isGrounded = true;
         
         private CapsuleCollider _collider;
         private Rigidbody _rigidbody;
         private IInputProvider _input;
         private EntityModifiers _modifiers;
+        private EntityVisual _visual;
+        private EntityAudio _audio;
 
         private bool _isMoving = true;
 
-        private float _accelerationMultiplier = 1f;
-        private float _maxSpeedMultiplier = 1f;
+        private readonly List<GhostFrame> _ghostFrames = new();
         
         public Vector3 Position => transform.position;
+        public EntityStats Stats => _stats;
 
         public event Action OnStoppedMoving;
         
@@ -66,14 +56,18 @@ namespace NJG.Runtime.Entity
         {
             _collider = GetComponent<CapsuleCollider>();
             _rigidbody = GetComponent<Rigidbody>();
-            _modifiers = new EntityModifiers(this);
+            _modifiers = new EntityModifiers(this, _stats);
+            _visual = GetComponent<EntityVisual>();
+            _audio = GetComponent<EntityAudio>();
             
-            _rigidbody.maxAngularVelocity = _maxAngularSpeed;
+            _stats.Initialize(_rigidbody);
         }
 
         private void OnEnable()
         {
             EventBus.StartListening<ChunkZPositionResetEvent>(OnChunkZPositionReset);
+            EventBus.StartListening<NewRunEvent>(OnNewRun);
+            EventBus.StartListening<EndRunRequestEvent>(OnEndRunRequested);
         }
 
         private void Update()
@@ -81,6 +75,7 @@ namespace NJG.Runtime.Entity
             if (transform.position.z >= GameManager.Instance.EnvironmentChunkTriggerZ)
             {
                 EventBus.TriggerEvent(new RequestNextChunkEvent());
+                GameManager.Instance.AddScore();
             }
             
             _modifiers.ProcessModifiers();
@@ -91,23 +86,35 @@ namespace NJG.Runtime.Entity
             if (!_isMoving || _input == null)
                 return;
             
+            // Ghost recording
+            _ghostFrames.Add(new GhostFrame(transform.position, transform.rotation));
+            
             Vector2 moveInput = _input.GetMovement();
             float xMovement = moveInput.x;
 
             // Spin the chair around Y based on input — accumulates so full rotations are possible
-            _rigidbody.AddTorque(Vector3.up * (xMovement * _spinTorque), ForceMode.Acceleration);
+            _rigidbody.AddTorque(Vector3.up * (xMovement * _stats.GetSpinTorque()), ForceMode.Acceleration);
 
             // Always propel forward down the hallway (world space)
-            _rigidbody.AddForce(Vector3.forward * (_acceleration * _accelerationMultiplier), ForceMode.Acceleration);
+            _rigidbody.AddForce(Vector3.forward * (_stats.GetAcceleration()), ForceMode.Acceleration);
 
             // Current spin speed drives lateral drift — faster spin = more left/right push
             float spinY = _rigidbody.angularVelocity.y;
-            _rigidbody.AddForce(Vector3.right * (spinY * _lateralInfluence), ForceMode.Acceleration);
-
-            if (_rigidbody.linearVelocity.magnitude > (_maxSpeed * _maxSpeedMultiplier))
+            _rigidbody.AddForce(Vector3.right * (spinY * _stats.GetLateralInfluence()), ForceMode.Acceleration);
+            
+            // Gravity
+            if (_rigidbody.useGravity)
             {
-                _rigidbody.linearVelocity = _rigidbody.linearVelocity.normalized * (_maxSpeed * _maxSpeedMultiplier);
+                Vector3 gravity = (Physics.gravity * _stats.GetGravityMultiplier()) - Physics.gravity;
+                _rigidbody.AddForce(gravity, ForceMode.Acceleration);
             }
+
+            if (_rigidbody.linearVelocity.magnitude > (_stats.GetMaxSpeed()))
+            {
+                _rigidbody.linearVelocity = _rigidbody.linearVelocity.normalized * (_stats.GetMaxSpeed());
+            }
+            
+            _audio.ToggleWheelSound(_isGrounded && _rigidbody.linearVelocity.magnitude > 0.1f);
         }
         
         private void OnCollisionEnter(Collision collision)
@@ -117,24 +124,44 @@ namespace NJG.Runtime.Entity
             {
                 if (Mathf.Abs(contact.normal.x) > 0.5f)
                 {
+                    _audio.PlayHitSFX();
+                    _visual.Spark(contact.point);
                     // Reverse Y spin to simulate the chair bouncing off the wall
                     Vector3 av = _rigidbody.angularVelocity;
-                    av.y = -av.y * _wallBounceSpinRetention;
+                    av.y = -av.y * _stats.GetWallBounceSpinRetention();
                     _rigidbody.angularVelocity = av;
                     break;
                 }
 
-                // Hit head on object
+                // Hit front collision
                 if (contact.normal.z < -0.5f && !IsInvincible && 
+                    _isMoving &&
                     (collision.gameObject.layer == _obstacleLayer || collision.gameObject.layer == _breakableObstacleLayer))
                 {
-                    // front collision
-                    _isMoving = false;
-                    _collider.material = null;
-                    OnStoppedMoving?.Invoke();
+                    if (_modifiers.TryRemoveModifierByType<LifeModifierSO>())
+                    {
+                        _audio.PlayHitSFX();
+                        _visual.Spark(contact.point);
+                        _visual.LostHeart();
+                        break;
+                    }
+                    
+                    _audio.PlayCrashSFX();
+                    _visual.Ragdoll();
+                    EndRun(false);
                     break;
                 }
+                else
+                {
+                    _audio.PlayHitSFX();
+                    _visual.Spark(contact.point);
+                }
             }
+        }
+
+        private void OnCollisionStay(Collision other)
+        {
+            _isGrounded = other.gameObject.layer == _groundLayer;
         }
 
         private void OnTriggerEnter(Collider other)
@@ -148,12 +175,29 @@ namespace NJG.Runtime.Entity
         private void OnDisable()
         {
             EventBus.StopListening<ChunkZPositionResetEvent>(OnChunkZPositionReset);
+            EventBus.StopListening<NewRunEvent>(OnNewRun);
+            EventBus.StopListening<EndRunRequestEvent>(OnEndRunRequested);
+        }
+
+        private void EndRun(bool instantStop)
+        {
+            _audio.ToggleWheelSound(false);
+            _isMoving = false;
+            if (instantStop) _rigidbody.linearVelocity = Vector3.zero;
+            _collider.material = null;
+            GameManager.Instance.NewGhostFrames(_ghostFrames);
+            OnStoppedMoving?.Invoke();
         }
 
         private void OnChunkZPositionReset(ChunkZPositionResetEvent e)
         {
             Vector3 playerPosition = transform.position;
             SetPosition(playerPosition.WithZ(playerPosition.z - e.ZPositionResetAmount));
+        }
+
+        private void OnEndRunRequested(EndRunRequestEvent e)
+        {
+            EndRun(true);
         }
 
         public void Init(IInputProvider inputProvider)
@@ -165,26 +209,42 @@ namespace NJG.Runtime.Entity
         {
             transform.position = worldPosition;
         }
-
-        public void ApplyModifier(BaseModifierSO modifierData)
+        
+        public void SetRotation(Quaternion rotation)
         {
-            _modifiers.AddModifier(modifierData);
+            transform.rotation = rotation;
+        }
+
+        public void ApplyModifier(Modifier modifier)
+        {
+            _modifiers.AddModifier(modifier);
+        }
+
+        public void PlaySound(AudioClip clip)
+        {
+            _audio.PlaySFX(clip);
         }
 
         public void SetInvincible(bool isInvincible)
         {
             IsInvincible = isInvincible;
             gameObject.layer = isInvincible ? _invincibleLayer : _defaultLayer;
+            _visual.SetInvincibleVisual(isInvincible);
         }
-        
-        public void SetAccelerationMultiplier(float accelerationMultiplier)
+
+        private void OnNewRun(NewRunEvent e)
         {
-            _accelerationMultiplier = accelerationMultiplier;
-        }
-        
-        public void SetMaxSpeedMultiplier(float maxSpeedMultiplier)
-        {
-            _maxSpeedMultiplier = maxSpeedMultiplier;
+            _visual.ResetVisual();
+            SetPosition(Vector3.zero);
+            SetRotation(Quaternion.identity);
+            _modifiers.RemoveAllModifiers();
+            _stats.ResetExtraLives();
+            _rigidbody.linearVelocity = Vector3.zero;
+            _rigidbody.angularVelocity = Vector3.zero;
+            _isMoving = true;
+            _collider.material = _slipperyMat;
+            
+            _ghostFrames.Clear();
         }
 
         private IEnumerable<ValueDropdownItem<int>> GetLayerDropdownItems()

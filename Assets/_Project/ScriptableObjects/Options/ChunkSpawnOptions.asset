@@ -16,6 +16,6 @@ MonoBehaviour:
   - {fileID: 461805862007870508, guid: 685b7b28c7bfa5944a73bbc3ec3c18de, type: 3}
   - {fileID: 829087924756843447, guid: abc5a8e8050d41145b9ff10fabfe9ce1, type: 3}
   - {fileID: 229050087798971447, guid: 6bd2134e224be9b48acae9e28648f9f3, type: 3}
-  <SpawnIntervalZ>k__BackingField: 150
+  <SpawnIntervalZ>k__BackingField: 100
   <ChunksToLoad>k__BackingField: 3
   <MaxChunkZPosition>k__BackingField: 10000

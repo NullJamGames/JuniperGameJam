@@ -9,73 +9,80 @@ namespace NJG.Runtime.Entity
     public class EntityModifiers
     {
         private IEntity _entity;
+        private EntityStats _stats;
         
-        public List<(BaseModifierSO Modifier, float RemainingTime)> TemporaryModifiers { get; private set; } = new();
-        public List<BaseModifierSO> PermanentModifiers { get; private set; } = new();
+        public List<Modifier> Modifiers { get; private set; } = new();
         
-        public EntityModifiers(IEntity entity)
+        public EntityModifiers(IEntity entity, EntityStats stats)
         {
             _entity = entity;
+            _stats = stats;
         }
 
         public void ProcessModifiers()
         {
-            if (TemporaryModifiers.Count == 0) return;
+            if (Modifiers.Count == 0) return;
 
-            for (int i = TemporaryModifiers.Count - 1; i >= 0; i--)
+            for (int i = Modifiers.Count - 1; i >= 0; i--)
             {
-                (BaseModifierSO modifier, float remaining) = TemporaryModifiers[i];
-                remaining -= Time.deltaTime;
+                Modifier modifier = Modifiers[i];
+                if (modifier.IsPermanent)
+                    continue;
+                
+                modifier.Tick(Time.deltaTime);
 
-                if (remaining <= 0f)
+                if (modifier.RemainingDuration <= 0f)
                 {
-                    TemporaryModifiers.RemoveAt(i);
-                    modifier.OnRemoveModifier(_entity);
+                    Modifiers.RemoveAt(i);
+                    modifier.ModifierData.OnRemoveModifier(_entity);
                     EventBus.TriggerEvent(new RemovedModifierEvent(modifier));
-                }
-                else
-                {
-                    TemporaryModifiers[i] = (modifier, remaining);
-                    EventBus.TriggerEvent(new UpdatedModifierEvent(modifier, remaining));
                 }
             }
         }
         
-        public void AddModifier(BaseModifierSO modifier)
+        public void AddModifier(Modifier modifier)
         {
-            if (PermanentModifiers.Contains(modifier))
-                return;
-            
-            if (TemporaryModifiers.Exists(m => m.Modifier == modifier))
+            Modifier existingModifier = Modifiers.FirstOrDefault(m => m.ModifierData == modifier.ModifierData);
+            if (existingModifier != null)
             {
-                // Reset the duration if the modifier is already applied
-                for (int i = 0; i < TemporaryModifiers.Count; i++)
-                {
-                    if (TemporaryModifiers[i].Modifier == modifier)
-                    {
-                        TemporaryModifiers[i] = (modifier, modifier.Duration);
-                        break;
-                    }
-                }
+                existingModifier.ResetDuration();
                 return;
             }
             
-            if (modifier.IsTemporary)
-                TemporaryModifiers.Add((modifier, modifier.Duration));
-            else
-                PermanentModifiers.Add(modifier);
-                
-            modifier.OnApplyModifier(_entity);
-                
+            Modifiers.Add(modifier);
+            modifier.ModifierData.OnApplyModifier(_entity);
             EventBus.TriggerEvent(new AddedModifierEvent(modifier));
         }
         
-        public void RemoveModifier(BaseModifierSO modifier)
+        public void RemoveModifier(Modifier modifier)
         {
-            if (PermanentModifiers.Contains(modifier))
-                PermanentModifiers.Remove(modifier);
-            else
-                TemporaryModifiers.RemoveAll(m => m.Modifier == modifier);
+            if (!Modifiers.Contains(modifier))
+                return;
+            
+            Modifiers.Remove(modifier);
+            modifier.ModifierData.OnRemoveModifier(_entity);
+            EventBus.TriggerEvent(new RemovedModifierEvent(modifier));
+        }
+        
+        public bool TryRemoveModifierByType<T>() where T : BaseModifierSO
+        {
+            Modifier modifierToRemove = Modifiers.FirstOrDefault(m => m.ModifierData is T);
+            if (modifierToRemove != null)
+            {
+                RemoveModifier(modifierToRemove);
+                return true;
+            }
+            return false;
+        }
+        
+        public void RemoveAllModifiers()
+        {
+            foreach (Modifier modifier in Modifiers)
+            {
+                modifier.ModifierData.OnRemoveModifier(_entity);
+                EventBus.TriggerEvent(new RemovedModifierEvent(modifier));
+            }
+            Modifiers.Clear();
         }
     }
 }

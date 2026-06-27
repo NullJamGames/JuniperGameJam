@@ -4,9 +4,9 @@ namespace NJG.Runtime.Events
 {
     public struct RemovedModifierEvent
     {
-        public BaseModifierSO Modifier { get; private set; }
+        public Modifier Modifier { get; private set; }
         
-        public RemovedModifierEvent(BaseModifierSO modifier)
+        public RemovedModifierEvent(Modifier modifier)
         {
             Modifier = modifier;
         }

@@ -18,28 +18,31 @@ namespace NJG.Runtime.Map
 
         private void Awake()
         {
-            _chunkSpawner = new ChunkSpawner(_chunkSpawnOptions);
+            _chunkSpawner = new ChunkSpawner(_chunkSpawnOptions, GameManager.Instance.CurrentLevelSeed);
         }
 
         private void OnEnable()
         {
             EventBus.StartListening<RequestNextChunkEvent>(OnNextChunkRequest);
-        }
-
-        private void Start()
-        {
-            _chunkSpawner.SpawnInitialChunks();
-            GameManager.Instance.UpdateEnvironmentChunkTriggerZ(_chunkSpawner.GetChunkTriggerPositionZ());
+            EventBus.StartListening<NewRunEvent>(OnNewRun);
         }
         
         private void OnDisable()
         {
             EventBus.StopListening<RequestNextChunkEvent>(OnNextChunkRequest);
+            EventBus.StopListening<NewRunEvent>(OnNewRun);
         }
 
         private void OnNextChunkRequest(RequestNextChunkEvent e)
         {
             _chunkSpawner.SpawnNextChunk();
+            _groundCollider.position = _chunkSpawner.GetGroundPositionReference();
+            GameManager.Instance.UpdateEnvironmentChunkTriggerZ(_chunkSpawner.GetChunkTriggerPositionZ());
+        }
+
+        private void OnNewRun(NewRunEvent e)
+        {
+            _chunkSpawner.ResetChunks(e.LevelSeed);
             _groundCollider.position = _chunkSpawner.GetGroundPositionReference();
             GameManager.Instance.UpdateEnvironmentChunkTriggerZ(_chunkSpawner.GetChunkTriggerPositionZ());
         }
